@@ -5,7 +5,9 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
-from encryption_approaches.playfair import playfair_encrypt
+from encryption_approaches.playfair import playfair_encrypt, playfair_decrypt
+from encryption_approaches import caesar
+from encryption_approaches import hill
 
 # Configuration de la page
 st.set_page_config(
@@ -37,25 +39,88 @@ with tab2:
     cipher_choice = st.selectbox("Choisissez l'algorithme", ["Playfair", "César", "Hill"])
     
     if cipher_choice == "Playfair":
-        st.subheader("Chiffrement de Playfair")
+        st.subheader("Chiffrement de Playfair (Entité A ↔ Entité B)")
         message_clair = st.text_input("Message de l'entité A (Clair) :", "HELLO")
-        cle = st.text_input("Mot-clé Playfair :", "MONKEY")
+        cle_playfair = st.text_input("Mot-clé Playfair :", "MONKEY")
         
-        if st.button("Chiffrer / Envoyer à B"):
-            if message_clair and cle:
-                resultat = playfair_encrypt(message_clair, cle)
-                st.success("Message chiffré avec succès !")
-                st.write(f"**Message chiffré reçu par l'entité B :** `{resultat}`")
+        # --- Chiffrement et Transmission ---
+        if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
+            if message_clair and cle_playfair:
+                resultat = playfair_encrypt(message_clair, cle_playfair)
+                st.session_state["canal_playfair"] = resultat
+                st.success("Message chiffré et transmis au canal !")
             else:
                 st.warning("Veuillez remplir le message et la clé.")
+        
+        # Affichage du message sur le canal de transmission
+        st.write("Message transmis sur le canal :", st.session_state.get("canal_playfair", ""))
+        
+        # --- Déchiffrement ---
+        if st.button("Déchiffrer (entité B)", key="playfair_decrypt_btn"):
+            message_recu = st.session_state.get("canal_playfair", "")
+            if message_recu and cle_playfair:
+                clair = playfair_decrypt(message_recu, cle_playfair)
+                st.success(f"Message lu par B : `{clair}`")
+            else:
+                st.error("Aucun message transmis ou clé manquante.")
                 
     elif cipher_choice == "César":
         st.subheader("Chiffre de César")
-        st.info("Bientôt implémenté !")
+        cle_cesar = st.text_input("Clé (nombre) :", "3")
+        sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True)
+        message = st.text_input("Message de A :", "ATTAQUE DEMAIN A LAUBE")
+
+        if st.button("Chiffrer / Envoyer à B"):
+            try:
+                st.session_state["canal"] = caesar.encrypt(message, cle_cesar, sens)
+            except ValueError as e:
+                st.error(str(e))
+
+        st.write("Message transmis :", st.session_state.get("canal", ""))
+
+        if st.button("Déchiffrer (entité B)"):
+            try:
+                clair = caesar.decrypt(st.session_state.get("canal", ""), cle_cesar, sens)
+                st.success(f"Message lu par B : {clair}")
+            except ValueError as e:
+                st.error(str(e))
         
     else:
-        st.subheader("Chiffre de Hill")
-        st.info("Bientôt implémenté !")
+        st.subheader("Chiffre de Hill (Entité A ↔ Entité B)")
+        message_hill = st.text_input("Message de l'entité A (Clair) :", "HELP")
+        
+        # Saisie de la matrice clé (ex: 3,3,2,5 pour du 2x2)
+        str_matrice = st.text_input("Matrice clé (séparée par des virgules) :", "3,3,2,5")
+        
+        if st.button("Chiffrer / Envoyer à B", key="hill_encrypt_btn"):
+            try:
+                # Transformation de la chaîne en matrice 2D (ex: 4 éléments -> grille 2x2)
+                valeurs = [int(x.strip()) for x in str_matrice.split(",")]
+                n = int(len(valeurs) ** 0.5)
+                K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
+                
+                resultat_hill = hill.chiffrer(message_hill, K)
+                st.session_state["canal_hill"] = resultat_hill
+                st.success("Message chiffré et transmis au canal !")
+            except Exception as e:
+                st.error(f"Erreur (vérifie que la matrice est inversible et carrée) : {e}")
+
+        st.write("Message transmis sur le canal :", st.session_state.get("canal_hill", ""))
+
+        if st.button("Déchiffrer (entité B)", key="hill_decrypt_btn"):
+            try:
+                valeurs = [int(x.strip()) for x in str_matrice.split(",")]
+                n = int(len(valeurs) ** 0.5)
+                K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
+                
+                message_recu = st.session_state.get("canal_hill", "")
+                if message_recu:
+                    clair_hill = hill.dechiffrer(message_recu, K)
+                    st.success(f"Message lu par B : `{clair_hill}`")
+                else:
+                    st.error("Aucun message sur le canal.")
+            except Exception as e:
+                st.error(f"Erreur de déchiffrement : {e}")
 
 # --- ONGLET 3 : Mots de passe & Attaques ---
 with tab3:

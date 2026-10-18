@@ -69,3 +69,26 @@ def playfair_encrypt(texte, cle):
             resultat += matrice[l1][c2] + matrice[l2][c1]
             
     return resultat
+
+def playfair_decrypt(texte_chiffre, cle):
+    """Déchiffre un message chiffré avec la méthode de Playfair"""
+    texte_chiffre = texte_chiffre.upper().replace("J", "I").replace(" ", "")
+    
+    # Découper le texte chiffré par paires de 2 lettres
+    paires = [texte_chiffre[i:i+2] for i in range(0, len(texte_chiffre), 2)]
+    
+    matrice = creer_matrice(cle)
+    resultat = ""
+    
+    for p in paires:
+        l1, c1 = trouver_position(matrice, p[0])
+        l2, c2 = trouver_position(matrice, p[1])
+        
+        if l1 == l2:  # Même ligne : pour déchiffrer, on décale vers la GAUCHE (-1)
+            resultat += matrice[l1][(c1 - 1) % 5] + matrice[l2][(c2 - 1) % 5]
+        elif c1 == c2:  # Même colonne : pour déchiffrer, on décale vers le HAUT (-1)
+            resultat += matrice[(l1 - 1) % 5][c1] + matrice[(l2 - 1) % 5][c2]
+        else:  # Rectangle : inversion des coins (identique au chiffrement)
+            resultat += matrice[l1][c2] + matrice[l2][c1]
+            
+    return resultat
