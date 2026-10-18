@@ -5,6 +5,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
+from encryption_approaches import caesar
 from encryption_approaches.playfair import playfair_encrypt
 
 # Configuration de la page
@@ -51,7 +52,24 @@ with tab2:
                 
     elif cipher_choice == "César":
         st.subheader("Chiffre de César")
-        st.info("Bientôt implémenté !")
+        cle_cesar = st.text_input("Clé (nombre) :", "3")
+        sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True)
+        message = st.text_input("Message de A :", "ATTAQUE DEMAIN A LAUBE")
+
+        if st.button("Chiffrer / Envoyer à B"):
+            try:
+                st.session_state["canal"] = caesar.encrypt(message, cle_cesar, sens)
+            except ValueError as e:
+                st.error(str(e))
+
+        st.write("Message transmis :", st.session_state.get("canal", ""))
+
+        if st.button("Déchiffrer (entité B)"):
+            try:
+                clair = caesar.decrypt(st.session_state.get("canal", ""), cle_cesar, sens)
+                st.success(f"Message lu par B : {clair}")
+            except ValueError as e:
+                st.error(str(e))
         
     else:
         st.subheader("Chiffre de Hill")
