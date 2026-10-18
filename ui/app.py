@@ -49,11 +49,28 @@ with tab2:
             else:
                 st.warning("Veuillez remplir le message et la clé.")
                 
-    elif cipher_choice == "César":
+     elif cipher_choice == "César":
         st.subheader("Chiffre de César")
-        st.info("Bientôt implémenté !")
-        
-    else:
+        cle_cesar = st.text_input("Clé (nombre) :", "3")
+        sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True)
+        message = st.text_input("Message de A :", "ATTAQUE DEMAIN A LAUBE")
+
+        if st.button("Chiffrer / Envoyer à B"):
+            try:
+                st.session_state["canal"] = caesar.encrypt(message, cle_cesar, sens)
+            except ValueError as e:
+                st.error(str(e))
+
+        st.write("Message transmis :", st.session_state.get("canal", ""))
+
+        if st.button("Déchiffrer (entité B)"):
+            try:
+                clair = caesar.decrypt(st.session_state.get("canal", ""), cle_cesar, sens)
+                st.success(f"Message lu par B : {clair}")
+            except ValueError as e:
+                st.error(str(e))
+
+     else:
         st.subheader("Chiffre de Hill")
         st.info("Bientôt implémenté !")
 
