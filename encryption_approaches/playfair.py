@@ -1,3 +1,4 @@
+import secrets
 import warnings
 
 from encryption_approaches.caesar import normalize
@@ -70,6 +71,131 @@ def afficher_avertissements(texte):
             warnings.warn(alerte)
 
 
+# --- Clé : validation, force et génération ---
+
+ALPHABET_GRILLE = "ABCDEFGHIKLMNOPQRSTUVWXYZ"  # 25 lettres, sans J
+
+# Suites prévisibles : alphabet et rangées de clavier (AZERTY et QWERTY)
+SUITES_PREVISIBLES = [
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "AZERTYUIOP", "QSDFGHJKLM", "WXCVBN",
+    "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM",
+]
+
+MIN_LETTRES_FAIBLE = 6   # en dessous : très faible
+MIN_LETTRES_FORTE = 12   # à partir de là (sans défaut) : forte
+
+
+def caracteres_invalides_cle(cle):
+    """Caractères interdits dans une clé : tout sauf les lettres et les espaces."""
+    return [c for c in normalize(cle) if not (c.isascii() and c.isalpha()) and not c.isspace()]
+
+
+def verifier_cle(cle):
+    """Refuse une clé avec des caractères interdits ou sans aucune lettre."""
+    invalides = caracteres_invalides_cle(cle)
+    if invalides:
+        refuser(
+            "Clé invalide : seules les lettres sont autorisées "
+            f"(caractères refusés : {' '.join(dict.fromkeys(invalides))})."
+        )
+    if not nettoyer(cle):
+        refuser("Clé invalide : elle doit contenir au moins une lettre.")
+
+
+def contient_suite_previsible(cle, longueur=4):
+    """Vrai si la clé contient une suite de 4 lettres de l'alphabet ou du clavier (dans un sens ou l'autre)."""
+    lettres = "".join(c for c in normalize(cle).upper() if "A" <= c <= "Z")
+    for i in range(len(lettres) - longueur + 1):
+        morceau = lettres[i : i + longueur]
+        for suite in SUITES_PREVISIBLES:
+            if morceau in suite or morceau in suite[::-1]:
+                return True
+    return False
+
+
+def evaluer_cle(cle):
+    """
+    Évalue la force d'une clé Playfair.
+    Renvoie (niveau, score sur 100, conseils) avec niveau parmi
+    "invalide", "tres_faible", "faible", "forte".
+    """
+    if caracteres_invalides_cle(cle):
+        return "invalide", 0, ["Seules les lettres sont autorisées."]
+    if not nettoyer(cle):
+        return "invalide", 0, ["La clé est vide : saisissez au moins une lettre."]
+
+    distinctes = list(dict.fromkeys(nettoyer(cle)))  # lettres différentes, dans l'ordre
+    d = len(distinctes)
+    score = round(d / 25 * 100)
+    conseils = []
+
+    if d < MIN_LETTRES_FORTE:
+        conseils.append(f"Utilisez au moins {MIN_LETTRES_FORTE} lettres différentes (actuellement {d}).")
+    if creer_matrice(cle) == creer_matrice(""):
+        conseils.append("La clé donne la grille alphabétique de base : elle ne protège rien.")
+        return "tres_faible", 0, conseils
+    if d < MIN_LETTRES_FAIBLE:
+        return "tres_faible", score, conseils
+
+    defaut = False
+    if contient_suite_previsible(cle):
+        conseils.append("Évitez les suites prévisibles (ABCD, AZERTY, QWERTY...).")
+        defaut = True
+    if distinctes == sorted(distinctes):
+        conseils.append("Évitez les lettres rangées dans l'ordre alphabétique.")
+        defaut = True
+
+    if d < MIN_LETTRES_FORTE or defaut:
+        conseils.append("Un mot-clé court ou un mot du dictionnaire est vulnérable à une attaque par dictionnaire.")
+        return "faible", min(score, 45), conseils
+    return "forte", score, conseils
+
+
+def generer_cle_aleatoire():
+    """Clé aléatoire : les 25 lettres de la grille dans un ordre tiré au hasard (module secrets)."""
+    while True:
+        lettres = list(ALPHABET_GRILLE)
+        for i in range(len(lettres) - 1, 0, -1):  # mélange de Fisher-Yates
+            j = secrets.randbelow(i + 1)
+            lettres[i], lettres[j] = lettres[j], lettres[i]
+        cle = "".join(lettres)
+        if evaluer_cle(cle)[0] == "forte":
+            return cle
+
+
+def afficher_force_cle(cle):
+    """Affiche une barre de force (rouge / jaune / vert) sous le champ de la clé."""
+    niveau, score, conseils = evaluer_cle(cle)
+    libelles = {
+        "invalide": ("Clé invalide", "#e5484d"),
+        "tres_faible": ("Clé très faible", "#e5484d"),
+        "faible": ("Clé faible", "#f5a524"),
+        "forte": ("Clé forte", "#30a46c"),
+    }
+    libelle, couleur = libelles[niveau]
+    largeur = max(score, 5)  # toujours un peu de barre visible
+    st.markdown(
+        f"""
+        <div style="background:rgba(128,128,128,0.25);border-radius:4px;height:8px;width:100%;">
+          <div style="background:{couleur};width:{largeur}%;height:8px;border-radius:4px;"></div>
+        </div>
+        <div style="color:{couleur};font-size:0.9rem;margin-top:4px;">{libelle}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    for conseil in conseils:
+        st.caption(conseil)
+
+
+def bouton_cle_aleatoire(cle_etat):
+    """Bouton qui remplit le champ de clé (dont la clé Streamlit est cle_etat) avec une clé aléatoire."""
+    def remplir():
+        st.session_state[cle_etat] = generer_cle_aleatoire()
+
+    st.button("Générer une clé aléatoire", key=f"{cle_etat}_generer", on_click=remplir)
+
+
 def creer_matrice(cle):
     """Crée une grille de 5x5 lettres à partir d'un mot-clé"""
     cle = nettoyer(cle)
@@ -105,6 +231,7 @@ def trouver_position(matrice, lettre):
 
 def playfair_encrypt(texte, cle):
     """Chiffre un message avec la méthode de Playfair"""
+    verifier_cle(cle)
     # Nettoyer le texte (accents, majuscules, J -> I, uniquement A-Z)
     texte_original = texte
     texte = nettoyer_message(texte)
@@ -146,6 +273,7 @@ def playfair_encrypt(texte, cle):
 
 def playfair_decrypt(texte_chiffre, cle):
     """Déchiffre un message chiffré avec la méthode de Playfair"""
+    verifier_cle(cle)
     # Comme Hill : on garde uniquement A-Z, sans erreur, et on complète un dernier bloc incomplet
     texte_chiffre = nettoyer(texte_chiffre)
     if len(texte_chiffre) % 2 != 0:

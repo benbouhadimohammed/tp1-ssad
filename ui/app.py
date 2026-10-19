@@ -41,7 +41,10 @@ with tab2:
     if cipher_choice == "Playfair":
         st.subheader("Chiffrement de Playfair (Entité A ↔ Entité B)")
         message_clair = st.text_input("Message de l'entité A (Clair) :", "HELLO")
-        cle_playfair = st.text_input("Mot-clé Playfair :", "MONKEY")
+        st.session_state.setdefault("cle_playfair", "MONKEY")
+        cle_playfair = st.text_input("Mot-clé Playfair :", key="cle_playfair")
+        playfair.afficher_force_cle(cle_playfair)
+        playfair.bouton_cle_aleatoire("cle_playfair")
         
         # --- Chiffrement et Transmission ---
         if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
