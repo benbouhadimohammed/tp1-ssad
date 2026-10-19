@@ -146,7 +146,10 @@ def playfair_encrypt(texte, cle):
 
 def playfair_decrypt(texte_chiffre, cle):
     """Déchiffre un message chiffré avec la méthode de Playfair"""
-    texte_chiffre = nettoyer_message(texte_chiffre)
+    # Comme Hill : on garde uniquement A-Z, sans erreur, et on complète un dernier bloc incomplet
+    texte_chiffre = nettoyer(texte_chiffre)
+    if len(texte_chiffre) % 2 != 0:
+        texte_chiffre += "X"
     
     # Découper le texte chiffré par paires de 2 lettres
     paires = [texte_chiffre[i:i+2] for i in range(0, len(texte_chiffre), 2)]
