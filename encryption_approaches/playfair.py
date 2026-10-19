@@ -186,8 +186,8 @@ def afficher_force_cle(cle):
         """,
         unsafe_allow_html=True,
     )
-    for conseil in conseils:
-        st.caption(conseil)
+    if conseils:
+        st.caption(" · ".join(conseils))
 
 
 def bouton_cle_aleatoire(cle_etat):
@@ -431,7 +431,6 @@ def estimation_force_brute(cles_par_seconde):
 
 def afficher_attaque_dictionnaire(texte_chiffre):
     """Section Entité C : intercepte le message du canal et lance l'attaque par dictionnaire."""
-    st.markdown("#### Entité C (attaquant) : attaque par dictionnaire")
     st.caption(
         "C lit le message sur le canal sans le modifier (interception passive). "
         "C connaît l'algorithme et devine un mot présent dans le message, mais pas la clé."

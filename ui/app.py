@@ -40,42 +40,64 @@ with tab2:
     
     if cipher_choice == "Playfair":
         st.subheader("Chiffrement de Playfair (Entité A ↔ Entité B)")
-        message_clair = st.text_input("Message de l'entité A (Clair) :", "HELLO")
-        st.session_state.setdefault("cle_playfair", "MONKEY")
-        cle_playfair = st.text_input("Mot-clé Playfair :", key="cle_playfair")
-        playfair.afficher_force_cle(cle_playfair)
-        playfair.bouton_cle_aleatoire("cle_playfair")
-        
-        # --- Chiffrement et Transmission ---
-        if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
-            st.session_state.pop("canal_playfair", None)  # on efface le résultat précédent
-            if message_clair and cle_playfair:
-                try:
-                    resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
-                    st.session_state["canal_playfair"] = resultat
-                    st.success("Message chiffré et transmis au canal !")
-                except ValueError as e:
-                    st.error(str(e))
+
+        # --- 1. Entité A : message, clé et chiffrement ---
+        with st.container(border=True):
+            st.markdown("**1. Entité A : chiffrement**")
+            message_clair = st.text_input("Message clair :", "HELLO")
+
+            st.session_state.setdefault("cle_playfair", "MONKEY")
+            col_cle, col_bouton = st.columns([4, 1], vertical_alignment="bottom")
+            with col_cle:
+                cle_playfair = st.text_input("Mot-clé :", key="cle_playfair")
+            with col_bouton:
+                playfair.bouton_cle_aleatoire("cle_playfair")
+            playfair.afficher_force_cle(cle_playfair)
+
+            if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn", type="primary"):
+                st.session_state.pop("canal_playfair", None)  # on efface le résultat précédent
+                if message_clair and cle_playfair:
+                    try:
+                        resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
+                        st.session_state["canal_playfair"] = resultat
+                        st.success("Message chiffré et transmis au canal !")
+                    except ValueError as e:
+                        st.error(str(e))
+                else:
+                    st.warning("Veuillez remplir le message et la clé.")
+
+        # --- 2. Canal de transmission ---
+        canal = st.session_state.get("canal_playfair", "")
+        with st.container(border=True):
+            st.markdown("**2. Canal de transmission**")
+            if canal:
+                st.code(canal, language=None)
             else:
-                st.warning("Veuillez remplir le message et la clé.")
-        
-        # Affichage du message sur le canal de transmission
-        st.write("Message transmis sur le canal :", st.session_state.get("canal_playfair", ""))
-        playfair.afficher_analyse_paires(st.session_state.get("canal_playfair", ""))
-        playfair.afficher_attaque_dictionnaire(st.session_state.get("canal_playfair", ""))
-        
-        # --- Déchiffrement ---
-        if st.button("Déchiffrer (entité B)", key="playfair_decrypt_btn"):
-            message_recu = st.session_state.get("canal_playfair", "")
-            if message_recu and cle_playfair:
-                try:
-                    clair = playfair.playfair_decrypt(message_recu, cle_playfair)
-                    st.success(f"Message lu par B : `{clair}`")
-                except ValueError as e:
-                    st.error(str(e))
+                st.caption("Aucun message transmis pour l'instant.")
+
+        # --- 3. Entité B : déchiffrement ---
+        with st.container(border=True):
+            st.markdown("**3. Entité B : déchiffrement**")
+            if st.button("Déchiffrer", key="playfair_decrypt_btn"):
+                if canal and cle_playfair:
+                    try:
+                        clair = playfair.playfair_decrypt(canal, cle_playfair)
+                        st.success(f"Message lu par B : `{clair}`")
+                    except ValueError as e:
+                        st.error(str(e))
+                else:
+                    st.error("Aucun message transmis ou clé manquante.")
+
+        # --- Sécurité : analyse et attaque (repliées par défaut) ---
+        with st.expander("🔍 Analyse des paires chiffrées (faiblesse de Playfair)"):
+            if canal:
+                playfair.afficher_analyse_paires(canal)
             else:
-                st.error("Aucun message transmis ou clé manquante.")
-                
+                st.caption("Chiffrez un message pour analyser ses paires.")
+
+        with st.expander("🕵️ Simulation d'attaque : Entité C (attaque par dictionnaire)"):
+            playfair.afficher_attaque_dictionnaire(canal)
+
     elif cipher_choice == "César":
         st.subheader("Chiffre de César")
         cle_cesar = st.text_input("Clé (nombre) :", "3")
