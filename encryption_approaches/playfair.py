@@ -297,3 +297,72 @@ def playfair_decrypt(texte_chiffre, cle):
             resultat += matrice[l1][c2] + matrice[l2][c1]
 
     return resultat
+
+
+# --- Analyse : faiblesse des digrammes (paires de lettres) ---
+
+def decouper_paires(texte_chiffre):
+    """Découpe un message chiffré en paires de 2 lettres (comme au déchiffrement)."""
+    texte_chiffre = nettoyer(texte_chiffre)
+    return [texte_chiffre[i : i + 2] for i in range(0, len(texte_chiffre) - 1, 2)]
+
+
+def paires_repetees(texte_chiffre):
+    """
+    Paires chiffrées qui apparaissent plusieurs fois.
+    Avec Playfair, une même paire claire donne toujours la même paire chiffrée :
+    les répétitions trahissent donc des répétitions du message clair.
+    Renvoie une liste de (paire, nombre, positions), la plus fréquente en premier.
+    Les positions sont les numéros des paires (à partir de 1).
+    """
+    positions = {}
+    for numero, paire in enumerate(decouper_paires(texte_chiffre), start=1):
+        positions.setdefault(paire, []).append(numero)
+    repetees = [(paire, len(pos), pos) for paire, pos in positions.items() if len(pos) > 1]
+    return sorted(repetees, key=lambda r: -r[1])
+
+
+def paires_inversees(texte_chiffre):
+    """
+    Couples de paires chiffrées inverses l'une de l'autre (XY et YX).
+    Avec Playfair, si AB donne XY alors BA donne YX : la présence des deux
+    indique qu'une paire claire et son inverse (ex. ES et SE) sont dans le message.
+    """
+    paires = set(decouper_paires(texte_chiffre))
+    return sorted({min(p, p[::-1]) for p in paires if p[::-1] in paires and p[0] != p[1]})
+
+
+def afficher_analyse_paires(texte_chiffre):
+    """Affiche ce qu'un attaquant voit dans le message chiffré, sans connaître la clé."""
+    paires = decouper_paires(texte_chiffre)
+    if not paires:
+        return
+    repetees = paires_repetees(texte_chiffre)
+    inversees = paires_inversees(texte_chiffre)
+
+    # Paires du message, les suspectes en gras
+    suspectes = {p for p, _, _ in repetees} | {q for p in inversees for q in (p, p[::-1])}
+    st.markdown(
+        "Paires chiffrées : "
+        + " ".join(f"**{p}**" if p in suspectes else p for p in paires)
+    )
+
+    if not repetees and not inversees:
+        st.caption("Aucune paire répétée ou inversée détectée dans ce message.")
+        return
+    lignes = ["**Analyse des paires (visible sans la clé)**"]
+    for paire, nombre, positions in repetees:
+        lignes.append(
+            f"- `{paire}` apparaît {nombre} fois (paires {', '.join(map(str, positions))}) : "
+            "la même paire claire est répétée dans le message."
+        )
+    for paire in inversees:
+        lignes.append(
+            f"- `{paire}` et `{paire[::-1]}` sont inversées : "
+            "le message clair contient une paire et son inverse (ex. ES / SE)."
+        )
+    lignes.append(
+        "\nFaiblesse de Playfair : une même paire donne toujours la même paire chiffrée. "
+        "Sur un long message, ces répétitions permettent une analyse de fréquence des digrammes."
+    )
+    st.info("\n".join(lignes))
