@@ -62,6 +62,7 @@ with tab2:
         # Affichage du message sur le canal de transmission
         st.write("Message transmis sur le canal :", st.session_state.get("canal_playfair", ""))
         playfair.afficher_analyse_paires(st.session_state.get("canal_playfair", ""))
+        playfair.afficher_attaque_dictionnaire(st.session_state.get("canal_playfair", ""))
         
         # --- Déchiffrement ---
         if st.button("Déchiffrer (entité B)", key="playfair_decrypt_btn"):

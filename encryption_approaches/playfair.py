@@ -1,4 +1,6 @@
+import os
 import secrets
+import time
 import warnings
 
 from encryption_approaches.caesar import normalize
@@ -366,3 +368,111 @@ def afficher_analyse_paires(texte_chiffre):
         "Sur un long message, ces répétitions permettent une analyse de fréquence des digrammes."
     )
     st.info("\n".join(lignes))
+
+# --- Attaque : dictionnaire sur la clé (Entité C intercepte le canal sans le modifier) ---
+
+# Liste de mots partagée avec la partie 3 (un mot ou une expression par ligne)
+CHEMIN_DICTIONNAIRE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "dictionnaire.txt"
+)
+
+# Nombre de grilles Playfair réellement différentes : 25! / 25
+# (décaler toutes les lignes ou toutes les colonnes donne une grille équivalente)
+NOMBRE_GRILLES = 620448401733239439360000
+
+
+def charger_dictionnaire(chemin=CHEMIN_DICTIONNAIRE):
+    """Lit la liste de mots (lignes vides ignorées)."""
+    with open(chemin, encoding="utf-8") as fichier:
+        return [ligne.strip() for ligne in fichier if ligne.strip()]
+
+
+def attaque_dictionnaire(texte_chiffre, mots, indice):
+    """
+    Essaie chaque mot comme clé et garde ceux dont le déchiffrement contient l'indice
+    (un mot que l'attaquant s'attend à trouver dans le message).
+    Les X sont ignorés dans la comparaison, car un X de remplissage peut tomber au milieu de l'indice.
+    Renvoie un dictionnaire : trouvees [(clé, message)], essais, duree, duree_premiere (secondes).
+    """
+    indice_propre = nettoyer(indice).replace("X", "")
+    if not indice_propre:
+        refuser("L'indice doit contenir au moins une lettre (autre que X).")
+
+    debut = time.perf_counter()
+    trouvees = []
+    duree_premiere = None
+    grilles_vues = set()
+    for mot in mots:
+        if caracteres_invalides_cle(mot) or not nettoyer(mot):
+            continue  # pas une clé Playfair valide
+        grille = tuple(tuple(ligne) for ligne in creer_matrice(mot))
+        if grille in grilles_vues:
+            continue  # même grille qu'un mot déjà essayé
+        grilles_vues.add(grille)
+
+        clair = playfair_decrypt(texte_chiffre, mot)
+        if indice_propre in clair.replace("X", ""):
+            trouvees.append((mot, clair))
+            if duree_premiere is None:
+                duree_premiere = time.perf_counter() - debut
+
+    return {
+        "trouvees": trouvees,
+        "essais": len(grilles_vues),
+        "duree": time.perf_counter() - debut,
+        "duree_premiere": duree_premiere,
+    }
+
+
+def estimation_force_brute(cles_par_seconde):
+    """Années nécessaires pour essayer toutes les grilles à cette vitesse."""
+    return NOMBRE_GRILLES / cles_par_seconde / (3600 * 24 * 365.25)
+
+
+def afficher_attaque_dictionnaire(texte_chiffre):
+    """Section Entité C : intercepte le message du canal et lance l'attaque par dictionnaire."""
+    st.markdown("#### Entité C (attaquant) : attaque par dictionnaire")
+    st.caption(
+        "C lit le message sur le canal sans le modifier (interception passive). "
+        "C connaît l'algorithme et devine un mot présent dans le message, mais pas la clé."
+    )
+    if not nettoyer(texte_chiffre):
+        st.caption("Aucun message intercepté pour l'instant.")
+        return
+
+    st.write("Message intercepté :", texte_chiffre)
+    indice = st.text_input("Mot connu dans le message (indice) :", "ATTAQUE", key="indice_attaque_playfair")
+    if not st.button("Lancer l'attaque par dictionnaire", key="attaque_playfair_btn"):
+        return
+
+    try:
+        mots = charger_dictionnaire()
+        resultat = attaque_dictionnaire(texte_chiffre, mots, indice)
+    except (ValueError, OSError) as e:
+        st.error(str(e))
+        return
+
+    essais, duree = resultat["essais"], resultat["duree"]
+    vitesse = essais / duree if duree > 0 else 0
+    stats = f"{essais} clés essayées en {duree * 1000:.1f} ms ({vitesse:,.0f} clés/s).".replace(",", " ")
+
+    if resultat["trouvees"]:
+        lignes = [
+            f"**Attaque réussie : clé trouvée en {resultat['duree_premiere'] * 1000:.1f} ms.**",
+        ]
+        for mot, clair in resultat["trouvees"][:5]:
+            lignes.append(f"- Clé `{mot}` → message : `{clair}`")
+        if len(resultat["trouvees"]) > 5:
+            lignes.append(f"- … et {len(resultat['trouvees']) - 5} autres : l'indice est trop court, essayez un mot plus long.")
+        lignes.append("\n" + stats)
+        lignes.append("\nUn mot-clé du dictionnaire ne protège pas le message : utilisez une clé aléatoire.")
+        st.error("\n".join(lignes))
+    else:
+        message = f"**Attaque échouée : aucune clé du dictionnaire ne donne « {indice} ».**\n\n{stats}"
+        if vitesse > 0:
+            annees = estimation_force_brute(vitesse)
+            message += (
+                f"\n\nForce brute sur toutes les grilles possibles (≈ 6,2 × 10²³) à cette vitesse : "
+                f"environ {annees:.1e} années."
+            )
+        st.success(message)
