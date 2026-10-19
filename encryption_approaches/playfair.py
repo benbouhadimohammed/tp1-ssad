@@ -1,6 +1,31 @@
+from encryption_approaches.caesar import normalize
+
+
+def nettoyer(texte):
+    """Retire les accents, met en majuscules, remplace J par I et garde uniquement A-Z."""
+    texte = normalize(texte).upper().replace("J", "I")
+    return "".join(c for c in texte if "A" <= c <= "Z")
+
+
+def refuser(erreur):
+    """Bloque l'opération avec une ValueError (comme César et Hill, app.py l'affiche)."""
+    raise ValueError(erreur)
+
+
+def nettoyer_message(texte):
+    """Comme nettoyer, mais refuse un texte sans aucune lettre (validation de l'entrée)."""
+    propre = nettoyer(texte)
+    if not propre:
+        refuser(
+            "Message invalide : il doit contenir au moins une lettre (A-Z) "
+            "pour pouvoir être chiffré avec Playfair."
+        )
+    return propre
+
+
 def creer_matrice(cle):
     """Crée une grille de 5x5 lettres à partir d'un mot-clé"""
-    cle = cle.upper().replace("J", "I")
+    cle = nettoyer(cle)
     alphabet = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
     grille = []
     
@@ -33,8 +58,8 @@ def trouver_position(matrice, lettre):
 
 def playfair_encrypt(texte, cle):
     """Chiffre un message avec la méthode de Playfair"""
-    # Nettoyer le texte (majuscules, remplacer J par I, enlever les espaces)
-    texte = texte.upper().replace("J", "I").replace(" ", "")
+    # Nettoyer le texte (accents, majuscules, J -> I, uniquement A-Z)
+    texte = nettoyer_message(texte)
     
     # Regrouper les lettres par paires
     paires = []
@@ -72,7 +97,7 @@ def playfair_encrypt(texte, cle):
 
 def playfair_decrypt(texte_chiffre, cle):
     """Déchiffre un message chiffré avec la méthode de Playfair"""
-    texte_chiffre = texte_chiffre.upper().replace("J", "I").replace(" ", "")
+    texte_chiffre = nettoyer_message(texte_chiffre)
     
     # Découper le texte chiffré par paires de 2 lettres
     paires = [texte_chiffre[i:i+2] for i in range(0, len(texte_chiffre), 2)]
@@ -90,5 +115,5 @@ def playfair_decrypt(texte_chiffre, cle):
             resultat += matrice[(l1 - 1) % 5][c1] + matrice[(l2 - 1) % 5][c2]
         else:  # Rectangle : inversion des coins (identique au chiffrement)
             resultat += matrice[l1][c2] + matrice[l2][c1]
-            
+
     return resultat

@@ -46,9 +46,12 @@ with tab2:
         # --- Chiffrement et Transmission ---
         if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
             if message_clair and cle_playfair:
-                resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
-                st.session_state["canal_playfair"] = resultat
-                st.success("Message chiffré et transmis au canal !")
+                try:
+                    resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
+                    st.session_state["canal_playfair"] = resultat
+                    st.success("Message chiffré et transmis au canal !")
+                except ValueError as e:
+                    st.error(str(e))
             else:
                 st.warning("Veuillez remplir le message et la clé.")
         
@@ -59,8 +62,11 @@ with tab2:
         if st.button("Déchiffrer (entité B)", key="playfair_decrypt_btn"):
             message_recu = st.session_state.get("canal_playfair", "")
             if message_recu and cle_playfair:
-                clair = playfair.playfair_decrypt(message_recu, cle_playfair)
-                st.success(f"Message lu par B : `{clair}`")
+                try:
+                    clair = playfair.playfair_decrypt(message_recu, cle_playfair)
+                    st.success(f"Message lu par B : `{clair}`")
+                except ValueError as e:
+                    st.error(str(e))
             else:
                 st.error("Aucun message transmis ou clé manquante.")
                 
