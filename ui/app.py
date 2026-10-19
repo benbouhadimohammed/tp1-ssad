@@ -55,11 +55,15 @@ with tab2:
             playfair.afficher_force_cle(cle_playfair)
 
             if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn", type="primary"):
-                st.session_state.pop("canal_playfair", None)  # on efface le résultat précédent
+                for cle_etat in ("canal_playfair", "envoye_playfair", "attendu_playfair"):
+                    st.session_state.pop(cle_etat, None)  # on efface le résultat précédent
                 if message_clair and cle_playfair:
                     try:
                         resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
                         st.session_state["canal_playfair"] = resultat
+                        # Ce que A a réellement envoyé, pour montrer une éventuelle modification par C
+                        st.session_state["envoye_playfair"] = resultat
+                        st.session_state["attendu_playfair"] = playfair.playfair_decrypt(resultat, cle_playfair)
                         st.success("Message chiffré et transmis au canal !")
                     except ValueError as e:
                         st.error(str(e))
@@ -68,12 +72,16 @@ with tab2:
 
         # --- 2. Canal de transmission ---
         canal = st.session_state.get("canal_playfair", "")
+        envoye = st.session_state.get("envoye_playfair", "")
+        modifie = bool(envoye) and canal != envoye
         with st.container(border=True):
             st.markdown("**2. Canal de transmission**")
             if canal:
                 st.code(canal, language=None)
             else:
                 st.caption("Aucun message transmis pour l'instant.")
+            if modifie:
+                st.warning(f"Vue de l'observateur : message modifié par C. A avait envoyé `{envoye}`.")
 
         # --- 3. Entité B : déchiffrement ---
         with st.container(border=True):
@@ -83,6 +91,12 @@ with tab2:
                     try:
                         clair = playfair.playfair_decrypt(canal, cle_playfair)
                         st.success(f"Message lu par B : `{clair}`")
+                        if modifie:
+                            st.info(
+                                f"Vue de l'observateur : A avait écrit `{st.session_state['attendu_playfair']}`. "
+                                "B a déchiffré sans aucune erreur et ne peut pas savoir que le message a été modifié : "
+                                "Playfair ne garantit pas l'intégrité (voir partie 4)."
+                            )
                     except ValueError as e:
                         st.error(str(e))
                 else:
@@ -97,6 +111,9 @@ with tab2:
 
         with st.expander("🕵️ Simulation d'attaque : Entité C (attaque par dictionnaire)"):
             playfair.afficher_attaque_dictionnaire(canal)
+
+        with st.expander("✏️ Simulation d'attaque : Entité C (modification du message)"):
+            playfair.afficher_modification_canal("canal_playfair")
 
     elif cipher_choice == "César":
         st.subheader("Chiffre de César")

@@ -475,3 +475,83 @@ def afficher_attaque_dictionnaire(texte_chiffre):
                 f"environ {annees:.1e} années."
             )
         st.success(message)
+
+
+# --- Attaque : modification aveugle du message (Entité C modifie le canal sans la clé) ---
+
+def paires_du_canal(texte_chiffre):
+    """Paires du message chiffré, y compris une dernière lettre seule."""
+    texte = nettoyer(texte_chiffre)
+    return [texte[k : k + 2] for k in range(0, len(texte), 2)]
+
+
+def echanger_paires(texte_chiffre, i, j):
+    """Échange les paires n°i et n°j (à partir de 1)."""
+    paires = paires_du_canal(texte_chiffre)
+    paires[i - 1], paires[j - 1] = paires[j - 1], paires[i - 1]
+    return "".join(paires)
+
+
+def inverser_paire(texte_chiffre, i):
+    """Inverse la paire n°i (XY devient YX) : B lira la paire claire inversée."""
+    paires = paires_du_canal(texte_chiffre)
+    paires[i - 1] = paires[i - 1][::-1]
+    return "".join(paires)
+
+
+def supprimer_paire(texte_chiffre, i):
+    """Supprime la paire n°i."""
+    paires = paires_du_canal(texte_chiffre)
+    del paires[i - 1]
+    return "".join(paires)
+
+
+def afficher_modification_canal(cle_canal):
+    """Section Entité C : modifie le message sur le canal (dont la clé Streamlit est cle_canal)."""
+    st.caption(
+        "C intercepte le message et le modifie avant que B le reçoive (attaque active). "
+        "C ne connaît pas la clé et ne déchiffre rien."
+    )
+    canal = st.session_state.get(cle_canal, "")
+    paires = paires_du_canal(canal)
+    if not paires:
+        st.caption("Aucun message à modifier pour l'instant.")
+        return
+
+    st.markdown("Paires sur le canal : " + " ".join(f"`{n}:{p}`" for n, p in enumerate(paires, start=1)))
+
+    # Modifications rapides sur les paires (les clés des menus dépendent du nombre de paires)
+    nombre = len(paires)
+    numeros = list(range(1, nombre + 1))
+    cle_a, cle_b = f"modif_a_{nombre}", f"modif_b_{nombre}"
+    col_a, col_b = st.columns(2)
+    with col_a:
+        a = st.selectbox("Paire n° :", numeros, key=cle_a)
+    with col_b:
+        b = st.selectbox("Avec la paire n° (pour l'échange) :", numeros, index=min(1, nombre - 1), key=cle_b)
+
+    def appliquer(fonction, *cles_numeros):
+        numeros_choisis = [st.session_state[cle] for cle in cles_numeros]
+        st.session_state[cle_canal] = fonction(st.session_state[cle_canal], *numeros_choisis)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.button(f"Échanger les paires {a} et {b}", key="modif_echanger", disabled=(a == b),
+                  on_click=appliquer, args=(echanger_paires, cle_a, cle_b))
+    with col2:
+        st.button(f"Inverser la paire {a}", key="modif_inverser",
+                  on_click=appliquer, args=(inverser_paire, cle_a))
+    with col3:
+        st.button(f"Supprimer la paire {a}", key="modif_supprimer", disabled=(nombre == 1),
+                  on_click=appliquer, args=(supprimer_paire, cle_a))
+
+    # Modification libre : le champ suit le contenu du canal quand celui-ci change
+    if st.session_state.get("modif_source") != canal:
+        st.session_state["modif_texte"] = canal
+        st.session_state["modif_source"] = canal
+
+    def remplacer():
+        st.session_state[cle_canal] = st.session_state["modif_texte"].strip().upper()
+
+    st.text_input("Ou modifier librement le message chiffré :", key="modif_texte")
+    st.button("Remplacer sur le canal", key="modif_remplacer", on_click=remplacer)
