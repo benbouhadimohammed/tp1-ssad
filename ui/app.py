@@ -48,6 +48,7 @@ with tab2:
         
         # --- Chiffrement et Transmission ---
         if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
+            st.session_state.pop("canal_playfair", None)  # on efface le résultat précédent
             if message_clair and cle_playfair:
                 try:
                     resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
