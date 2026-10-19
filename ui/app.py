@@ -53,6 +53,8 @@ with tab2:
             with col_bouton:
                 playfair.bouton_cle_aleatoire("cle_playfair")
             playfair.afficher_force_cle(cle_playfair)
+            with st.expander("Voir la grille 5×5 de la clé"):
+                playfair.afficher_grille(cle_playfair)
 
             if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn", type="primary"):
                 for cle_etat in ("canal_playfair", "envoye_playfair", "attendu_playfair"):

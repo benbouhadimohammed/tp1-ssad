@@ -198,6 +198,35 @@ def bouton_cle_aleatoire(cle_etat):
     st.button("Générer une clé aléatoire", key=f"{cle_etat}_generer", on_click=remplir)
 
 
+def afficher_grille(cle):
+    """Affiche la grille 5x5 de la clé : lettres de la clé en vert, reste de l'alphabet en gris."""
+    if caracteres_invalides_cle(cle) or not nettoyer(cle):
+        st.caption("Saisissez une clé valide pour voir la grille.")
+        return
+
+    lettres_cle = set(nettoyer(cle))
+    style_case = (
+        "width:2.4em;height:2.4em;text-align:center;font-family:monospace;"
+        "font-size:1.1rem;font-weight:600;border:1px solid rgba(128,128,128,0.4);"
+    )
+    lignes = []
+    for ligne in creer_matrice(cle):
+        cases = []
+        for lettre in ligne:
+            fond = "rgba(48,164,108,0.35)" if lettre in lettres_cle else "rgba(128,128,128,0.12)"
+            cases.append(f'<td style="{style_case}background:{fond};">{lettre}</td>')
+        lignes.append("<tr>" + "".join(cases) + "</tr>")
+    st.markdown(
+        '<table style="border-collapse:collapse;margin:0;">' + "".join(lignes) + "</table>",
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        f"En vert : les {len(lettres_cle)} lettres venant de la clé, sans doublons. "
+        "En gris : le reste de l'alphabet, dans l'ordre (prévisible pour un attaquant). "
+        "J est fusionné avec I."
+    )
+
+
 def creer_matrice(cle):
     """Crée une grille de 5x5 lettres à partir d'un mot-clé"""
     cle = nettoyer(cle)
