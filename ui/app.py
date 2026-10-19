@@ -64,7 +64,7 @@ with tab2:
             else:
                 st.error("Aucun message transmis ou clé manquante.")
                 
-     elif cipher_choice == "César":
+    elif cipher_choice == "César":
         st.subheader("Chiffre de César")
         cle_cesar = st.text_input("Clé (nombre) :", "3")
         sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True)
