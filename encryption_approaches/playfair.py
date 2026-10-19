@@ -1,10 +1,22 @@
+import warnings
+
 from encryption_approaches.caesar import normalize
+
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 
 
 def nettoyer(texte):
     """Retire les accents, met en majuscules, remplace J par I et garde uniquement A-Z."""
     texte = normalize(texte).upper().replace("J", "I")
     return "".join(c for c in texte if "A" <= c <= "Z")
+
+
+def dans_streamlit():
+    """Vrai si le code tourne dans l'application Streamlit."""
+    return st is not None and st.runtime.exists()
 
 
 def refuser(erreur):
@@ -21,6 +33,41 @@ def nettoyer_message(texte):
             "pour pouvoir être chiffré avec Playfair."
         )
     return propre
+
+
+def avertissements(texte):
+    """Liste des limites de Playfair qui altèrent ce message (sans le modifier)."""
+    alertes = []
+    texte_normalise = normalize(texte)
+    chiffres = [c for c in texte_normalise if c.isdigit()]
+    ponctuation = [c for c in texte_normalise if not c.isalnum() and not c.isspace()]
+    if chiffres or ponctuation:
+        if chiffres and ponctuation:
+            quoi = "les chiffres et la ponctuation ont été supprimés"
+        elif chiffres:
+            quoi = "les chiffres ont été supprimés"
+        else:
+            quoi = "la ponctuation a été supprimée"
+        supprimes = " ".join(dict.fromkeys(chiffres + ponctuation))  # sans doublons
+        alertes.append(
+            "Limite de Playfair : la grille 5x5 ne contient que des lettres, "
+            f"{quoi} ({supprimes}). B ne pourra pas les retrouver au déchiffrement."
+        )
+    if "J" in normalize(texte).upper():
+        alertes.append(
+            "Limite de Playfair : la grille 5x5 n'a que 25 cases, "
+            "J a été remplacé par I, B lira I à la place de J."
+        )
+    return alertes
+
+
+def afficher_avertissements(texte):
+    """Affiche les avertissements dans l'interface Streamlit (ou via warnings sinon)."""
+    for alerte in avertissements(texte):
+        if dans_streamlit():
+            st.warning(alerte)
+        else:
+            warnings.warn(alerte)
 
 
 def creer_matrice(cle):
@@ -59,7 +106,9 @@ def trouver_position(matrice, lettre):
 def playfair_encrypt(texte, cle):
     """Chiffre un message avec la méthode de Playfair"""
     # Nettoyer le texte (accents, majuscules, J -> I, uniquement A-Z)
+    texte_original = texte
     texte = nettoyer_message(texte)
+    afficher_avertissements(texte_original)
     
     # Regrouper les lettres par paires
     paires = []
