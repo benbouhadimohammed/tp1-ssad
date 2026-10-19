@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
-from encryption_approaches.playfair import playfair_encrypt, playfair_decrypt
+from encryption_approaches import playfair
 from encryption_approaches import caesar
 from encryption_approaches import hill
 
@@ -46,7 +46,7 @@ with tab2:
         # --- Chiffrement et Transmission ---
         if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn"):
             if message_clair and cle_playfair:
-                resultat = playfair_encrypt(message_clair, cle_playfair)
+                resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
                 st.session_state["canal_playfair"] = resultat
                 st.success("Message chiffré et transmis au canal !")
             else:
@@ -59,7 +59,7 @@ with tab2:
         if st.button("Déchiffrer (entité B)", key="playfair_decrypt_btn"):
             message_recu = st.session_state.get("canal_playfair", "")
             if message_recu and cle_playfair:
-                clair = playfair_decrypt(message_recu, cle_playfair)
+                clair = playfair.playfair_decrypt(message_recu, cle_playfair)
                 st.success(f"Message lu par B : `{clair}`")
             else:
                 st.error("Aucun message transmis ou clé manquante.")
