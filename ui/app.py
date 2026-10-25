@@ -71,7 +71,7 @@ with tab1:
 with tab2:
     st.header("Partie 2 : Algorithmes de Chiffrement")
     cipher_choice = st.selectbox("Choisissez l'algorithme", ["Playfair", "César", "Hill"])
-
+    
     if cipher_choice == "Playfair":
         st.subheader("Chiffrement de Playfair (Entité A ↔ Entité B)")
 
@@ -171,21 +171,21 @@ with tab2:
                 st.success(f"Message lu par B : {clair}")
             except ValueError as e:
                 st.error(str(e))
-
+        
     else:
         st.subheader("Chiffre de Hill (Entité A ↔ Entité B)")
         message_hill = st.text_input("Message de l'entité A (Clair) :", "HELP")
-
+        
         # Saisie de la matrice clé (ex: 3,3,2,5 pour du 2x2)
         str_matrice = st.text_input("Matrice clé (séparée par des virgules) :", "3,3,2,5")
-
+        
         if st.button("Chiffrer / Envoyer à B", key="hill_encrypt_btn"):
             try:
                 # Transformation de la chaîne en matrice 2D (ex: 4 éléments -> grille 2x2)
                 valeurs = [int(x.strip()) for x in str_matrice.split(",")]
                 n = int(len(valeurs) ** 0.5)
                 K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
-
+                
                 resultat_hill = hill.chiffrer(message_hill, K)
                 st.session_state["canal_hill"] = resultat_hill
                 st.success("Message chiffré et transmis au canal !")
@@ -199,7 +199,7 @@ with tab2:
                 valeurs = [int(x.strip()) for x in str_matrice.split(",")]
                 n = int(len(valeurs) ** 0.5)
                 K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
-
+                
                 message_recu = st.session_state.get("canal_hill", "")
                 if message_recu:
                     clair_hill = hill.dechiffrer(message_recu, K)
@@ -246,7 +246,7 @@ with tab3:
                     if target_pwd:
                         alphabet, _ = charsets.get_cas3_config()
                         with st.spinner("Exécution de l'attaque par force brute..."):
-                            success, guess, attempts, duration = attaks.brute_force_cas3(target_pwd, alphabet)
+                            success, guess, attempts, duration = attacks.brute_force_cas3(target_pwd, alphabet)
 
                         if success:
                             st.success("🎯 Mot de passe cassé avec succès !")
@@ -343,7 +343,7 @@ with tab3:
         st.divider()
         st.subheader("Protection contre le dictionnaire : politique de mot de passe")
         cand = st.text_input("Mot de passe à tester :", "1234", key="c4_policy_in", type="password")
-        cand = st.text_input("Mot de passe à tester :", "1234", key="c4_policy_in")
+        
         if st.button("Vérifier la politique", key="c4_policy_btn"):
             problemes = protection4.check_password_policy(cand)
             if problemes:
