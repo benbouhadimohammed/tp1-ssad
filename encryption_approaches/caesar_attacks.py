@@ -12,6 +12,7 @@ def brute_force(chiffre):
     return resultats
 
 
+
 def attaque_lettre_frequente(chiffre):
     """Suppose que la lettre la plus fréquente du chiffré est un E."""
     lettres = []
@@ -26,3 +27,4 @@ def attaque_lettre_frequente(chiffre):
     if cle == 0:                    
         return 0, chiffre
     return cle, decrypt(chiffre, cle)
+
