@@ -288,7 +288,7 @@ with tab3:
 
         col_cible, col_hasard = st.columns([3, 1])
         with col_cible:
-            target = st.text_input("Mot de passe cible (modifiable) :", key="c4_target")
+            target = st.text_input("Mot de passe cible (modifiable) :", key="c4_target", type="password")
         with col_hasard:
             st.write("")
             st.button("Tirer au hasard", on_click=nouveau_cible, key="c4_random")
@@ -321,13 +321,14 @@ with tab3:
 
         st.divider()
         st.subheader("Protection contre la force brute : limitation des tentatives")
-        mdp_compte = st.text_input("Mot de passe du compte :", "1234", key="c4_acc_pwd")
+        mdp_compte = st.text_input("Mot de passe du compte :", "1234", key="c4_acc_pwd", type="password")
         if st.button("Créer le compte", key="c4_acc_btn"):
             st.session_state["c4_compte"] = protection4.hash_password(mdp_compte)
             protection4.reset_attempts("demo_c4")
             st.success("Compte créé.")
 
-        essai = st.text_input("Tentative de connexion :", key="c4_try")
+        essai = st.text_input("Tentative de connexion :", key="c4_try", type="password")
+        
         if st.button("Se connecter", key="c4_login"):
             if "c4_compte" not in st.session_state:
                 st.error("Créez d'abord le compte.")
@@ -341,6 +342,7 @@ with tab3:
 
         st.divider()
         st.subheader("Protection contre le dictionnaire : politique de mot de passe")
+        cand = st.text_input("Mot de passe à tester :", "1234", key="c4_policy_in", type="password")
         cand = st.text_input("Mot de passe à tester :", "1234", key="c4_policy_in")
         if st.button("Vérifier la politique", key="c4_policy_btn"):
             problemes = protection4.check_password_policy(cand)

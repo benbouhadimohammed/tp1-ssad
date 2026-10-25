@@ -69,6 +69,7 @@ def playfair_encrypt(texte, cle):
             resultat += matrice[l1][c2] + matrice[l2][c1]
             
     return resultat
+
 def playfair_decrypt(texte_chiffre, cle):
     """Déchiffre un message chiffré avec la méthode de Playfair"""
     texte_chiffre = texte_chiffre.upper().replace("J", "I").replace(" ", "")
