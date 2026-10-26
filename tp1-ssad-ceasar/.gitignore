@@ -1,0 +1,10 @@
+# Environnement virtuel Python (très lourd, inutile de l'envoyer)
+.venv/
+venv/
+
+# Fichiers de cache de Python
+__pycache__/
+*.pyc
+
+# Paramètres de l'éditeur VS Code (optionnel mais propre)
+.vscode/
