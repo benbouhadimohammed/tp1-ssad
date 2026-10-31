@@ -55,6 +55,12 @@ st.set_page_config(
     layout="wide"
 )
 
+# === AUTHENTIFICATION (Partie 3) : page affichée avant tout le reste ===
+from passwords import auth
+if not auth.page_connexion():
+    st.stop()
+auth.sidebar_utilisateur()
+
 st.title("🔒 Framework de Chiffrement et Sécurité (SSAD)")
 st.write("Interface principale du projet - TP N°1")
 
