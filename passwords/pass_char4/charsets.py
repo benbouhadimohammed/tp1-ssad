@@ -8,6 +8,9 @@ LENGTH = 4
 # Dictionnaire FIXE (reproductible), du plus probable au moins probable
 DICTIONARY = ["1234", "1111", "4321", "2222", "3333", "4444", "1212", "2121",
               "1122", "3344", "1221", "2112", "1313", "2424", "4141"]
+import itertools
+
+DICTIONARY = ["".join(p) for p in itertools.product(CHARSET, repeat=LENGTH)]
 
 
 def search_space() -> int:

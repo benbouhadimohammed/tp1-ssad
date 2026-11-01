@@ -1,0 +1,10 @@
+{
+  "yasmine meftahi": {
+    "hash": "12043ff96180159962c04f7c0fb76cded672e4eefe8fe942d5d863f8d6905544",
+    "salt": "6efd9accd30da20f452d59e662c592bd"
+  },
+  "mohamed": {
+    "hash": "89d7dd49d13160a337560b9f697c0c9b556fc10ec6466a82ed2251c60b7a06e2",
+    "salt": "f59a61ec04808e3948d7f161c60eca27"
+  }
+}

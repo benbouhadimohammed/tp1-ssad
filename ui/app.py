@@ -8,21 +8,26 @@ import streamlit as st
 from encryption_approaches import playfair
 from encryption_approaches import caesar
 from encryption_approaches import hill
-from integrity import integrity
-
-# Import des modules pour les Mots de passe (Partie 3 - Cas 3)
+from integrity import integrity 
+# Import des modules pour les Mots de passe (Partie 3)
 try:
     from passwords.pass_standard import charsets
-    from passwords.pass_standard import attaks
+    from passwords.pass_standard import attacks
     from passwords.pass_standard import protection
 except ImportError:
-    from passwords import password as charsets
-    from passwords import attaks
+    # Au cas où le dossier est nommé sans le 'a' (passwords)
+    from passwords import charsets
+    from passwords import attacks
     from passwords import protection
+
+# === CAS 1 : imports (alias pour ne pas entrer en conflit) ===
+from passwords.pass_char3 import charsets as charsets1
+from passwords.pass_char3 import attacks as attacks1  
+from passwords.pass_char3 import protection as protection1
 
 # === CAS 2 : imports (alias pour ne pas entrer en conflit avec le Cas 3) ===
 from passwords.pass_char4 import charsets as charsets4
-from passwords.pass_char4 import attaks as attacks4
+from passwords.pass_char4 import attacks as attacks4
 from passwords.pass_char4 import protection as protection4
 
 
@@ -49,6 +54,12 @@ st.set_page_config(
     page_icon="🔒",
     layout="wide"
 )
+
+# === AUTHENTIFICATION (Partie 3) : page affichée avant tout le reste ===
+from passwords import auth
+if not auth.page_connexion():
+    st.stop()
+auth.sidebar_utilisateur()
 
 st.title("🔒 Framework de Chiffrement et Sécurité (SSAD)")
 st.write("Interface principale du projet - TP N°1")
@@ -78,7 +89,7 @@ with tab2:
         # --- 1. Entité A : message, clé et chiffrement ---
         with st.container(border=True):
             st.markdown("**1. Entité A : chiffrement**")
-            message_clair = st.text_input("Message clair (Playfair) :", "HELLO", key="msg_playfair")
+            message_clair = st.text_input("Message clair :", "HELLO")
 
             st.session_state.setdefault("cle_playfair", "MONKEY")
             col_cle, col_bouton = st.columns([4, 1], vertical_alignment="bottom")
@@ -92,15 +103,15 @@ with tab2:
 
             if st.button("Chiffrer / Envoyer à B", key="playfair_encrypt_btn", type="primary"):
                 for cle_etat in ("canal_playfair", "envoye_playfair", "attendu_playfair"):
-                    st.session_state.pop(cle_etat, None)
+                    st.session_state.pop(cle_etat, None)  # on efface le résultat précédent
                 if message_clair and cle_playfair:
                     try:
                         resultat = playfair.playfair_encrypt(message_clair, cle_playfair)
                         st.session_state["canal_playfair"] = resultat
+                        # Ce que A a réellement envoyé, pour montrer une éventuelle modification par C
                         st.session_state["envoye_playfair"] = resultat
                         st.session_state["attendu_playfair"] = playfair.playfair_decrypt(resultat, cle_playfair)
-                        st.session_state["algo_canal"] = "Playfair"  # 🔒 Enregistrement de l'algorithme source
-                        st.success("Message chiffré et transmis au canal via Playfair !")
+                        st.success("Message chiffré et transmis au canal !")
                     except ValueError as e:
                         st.error(str(e))
                 else:
@@ -119,14 +130,11 @@ with tab2:
             if modifie:
                 st.warning(f"Vue de l'observateur : message modifié par C. A avait envoyé `{envoye}`.")
 
-        # --- 3. Entité B : déchiffrement avec validation stricte de l'algorithme ---
+        # --- 3. Entité B : déchiffrement ---
         with st.container(border=True):
             st.markdown("**3. Entité B : déchiffrement**")
             if st.button("Déchiffrer", key="playfair_decrypt_btn"):
-                algo_actuel = st.session_state.get("algo_canal")
-                if algo_actuel and algo_actuel != "Playfair":
-                    st.error(f"❌ Erreur critique : Le canal contient un message chiffré avec **{algo_actuel}**, impossible de déchiffrer avec **Playfair** !")
-                elif canal and cle_playfair:
+                if canal and cle_playfair:
                     try:
                         clair = playfair.playfair_decrypt(canal, cle_playfair)
                         st.success(f"Message lu par B : `{clair}`")
@@ -156,70 +164,61 @@ with tab2:
 
     elif cipher_choice == "César":
         st.subheader("Chiffre de César")
-        cle_cesar = st.text_input("Clé (nombre) :", "3", key="cle_cesar")
-        sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True, key="sens_cesar")
-        message = st.text_input("Message de A :", "ATTAQUE DEMAIN A LAUBE", key="msg_cesar")
+        cle_cesar = st.text_input("Clé (nombre) :", "3")
+        sens = st.radio("Sens :", ["droite", "gauche"], horizontal=True)
+        message = st.text_input("Message de A :", "ATTAQUE DEMAIN A LAUBE")
 
-        if st.button("Chiffrer / Envoyer à B", key="cesar_encrypt_btn"):
+        if st.button("Chiffrer / Envoyer à B"):
             try:
-                st.session_state["canal_cesar"] = caesar.encrypt(message, cle_cesar, sens)
-                st.session_state["algo_canal"] = "César"  # 🔒 Enregistrement de l'algorithme source
-                st.success("Message chiffré et transmis via César !")
+                st.session_state["canal"] = caesar.encrypt(message, cle_cesar, sens)
             except ValueError as e:
                 st.error(str(e))
 
-        canal = st.session_state.get("canal_cesar", "")
-        st.write("Message transmis :", canal)
+        st.write("Message transmis :", st.session_state.get("canal", ""))
 
-        if st.button("Déchiffrer (entité B)", key="cesar_decrypt_btn"):
-            algo_actuel = st.session_state.get("algo_canal")
-            if algo_actuel and algo_actuel != "César":
-                st.error(f"❌ Erreur : Ce message provient de l'algorithme **{algo_actuel}**. Changement d'algorithme interdit au déchiffrement !")
-            else:
-                try:
-                    clair = caesar.decrypt(canal, cle_cesar, sens)
-                    st.success(f"Message lu par B : {clair}")
-                except ValueError as e:
-                    st.error(str(e))
+        if st.button("Déchiffrer (entité B)"):
+            try:
+                clair = caesar.decrypt(st.session_state.get("canal", ""), cle_cesar, sens)
+                st.success(f"Message lu par B : {clair}")
+            except ValueError as e:
+                st.error(str(e))
         
     else:
         st.subheader("Chiffre de Hill (Entité A ↔ Entité B)")
-        message_hill = st.text_input("Message de l'entité A (Clair) :", "HELP", key="msg_hill")
-        str_matrice = st.text_input("Matrice clé (séparée par des virgules) :", "3,3,2,5", key="matrice_hill")
+        message_hill = st.text_input("Message de l'entité A (Clair) :", "HELP")
+        
+        # Saisie de la matrice clé (ex: 3,3,2,5 pour du 2x2)
+        str_matrice = st.text_input("Matrice clé (séparée par des virgules) :", "3,3,2,5")
         
         if st.button("Chiffrer / Envoyer à B", key="hill_encrypt_btn"):
             try:
+                # Transformation de la chaîne en matrice 2D (ex: 4 éléments -> grille 2x2)
                 valeurs = [int(x.strip()) for x in str_matrice.split(",")]
                 n = int(len(valeurs) ** 0.5)
                 K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
                 
                 resultat_hill = hill.chiffrer(message_hill, K)
                 st.session_state["canal_hill"] = resultat_hill
-                st.session_state["algo_canal"] = "Hill"  # 🔒 Enregistrement de l'algorithme source
-                st.success("Message chiffré et transmis via Hill !")
+                st.success("Message chiffré et transmis au canal !")
             except Exception as e:
                 st.error(f"Erreur (vérifie que la matrice est inversible et carrée) : {e}")
 
-        canal = st.session_state.get("canal_hill", "")
-        st.write("Message transmis sur le canal :", canal)
+        st.write("Message transmis sur le canal :", st.session_state.get("canal_hill", ""))
 
         if st.button("Déchiffrer (entité B)", key="hill_decrypt_btn"):
-            algo_actuel = st.session_state.get("algo_canal")
-            if algo_actuel and algo_actuel != "Hill":
-                st.error(f"❌ Erreur : Tentative de déchiffrement avec Hill alors que le canal utilise **{algo_actuel}** !")
-            else:
-                try:
-                    valeurs = [int(x.strip()) for x in str_matrice.split(",")]
-                    n = int(len(valeurs) ** 0.5)
-                    K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
-                    
-                    if canal:
-                        clair_hill = hill.dechiffrer(canal, K)
-                        st.success(f"Message lu par B : `{clair_hill}`")
-                    else:
-                        st.error("Aucun message sur le canal.")
-                except Exception as e:
-                    st.error(f"Erreur de déchiffrement : {e}")
+            try:
+                valeurs = [int(x.strip()) for x in str_matrice.split(",")]
+                n = int(len(valeurs) ** 0.5)
+                K = [valeurs[i:i+n] for i in range(0, len(valeurs), n)]
+                
+                message_recu = st.session_state.get("canal_hill", "")
+                if message_recu:
+                    clair_hill = hill.dechiffrer(message_recu, K)
+                    st.success(f"Message lu par B : `{clair_hill}`")
+                else:
+                    st.error("Aucun message sur le canal.")
+            except Exception as e:
+                st.error(f"Erreur de déchiffrement : {e}")
 
 # --- ONGLET 3 : Mots de passe & Attaques ---
 with tab3:
@@ -230,58 +229,35 @@ with tab3:
     )
 
     if "Cas 3" in pwd_case:
-        st.subheader("🔑 Cas 3 : Mot de passe Standard (a..z, A..Z, 0-9, symboles)")
+        st.subheader("🔑 Cas 3 : Mot de passe Standard (a..z, A..Z, 0..9, symboles)")
 
-        target_pwd = st.text_input("Mot de passe cible à tester :", value="P@ssword2026!", type="password")
+        # Saisie du mot de passe
+        target_pwd = st.text_input("Mot de passe cible à tester :", value="P@ss*1", type="password")
 
-        # --- Section 1 : Vérification de la Politique de Sécurité (Password Policy) ---
+        # --- Section 1 : Évaluation & Protection ---
         with st.container(border=True):
-            st.markdown("**1. Politique de Sécurité & Validation du Mot de passe**")
-            st.caption("Règles d'acceptation : Longueur min. 12 car., Majuscule, Minuscule, Chiffre, Symbole, non-blacklisté.")
-            
-            if st.button("Vérifier le mot de passe (Politique Cas 3)"):
-                erreurs = protection.check_password_policy_cas3(target_pwd, min_length=12)
-                if erreurs:
-                    for err in erreurs:
-                        st.error(err)
-                else:
-                    st.success("✅ Mot de passe conforme et accepté par la politique de sécurité !")
+            st.markdown("**1. Évaluation de la robustesse & Solution de Protection**")
+            if target_pwd:
+                robustesse = protection.evaluer_complexite_cas3(target_pwd)
+                st.write(f"**Robustesse du mot de passe :** {robustesse}")
 
-        # --- Section 2 : Protection contre la Force Brute en ligne (Rate Limiting & Lockout) ---
+                if st.button("🔐 Proposer la solution de protection (Hachage + Sel)"):
+                    salt_hex, hash_hex = protection.proteger_mot_de_passe(target_pwd)
+                    st.success("Le mot de passe a été sécurisé avec PBKDF2-HMAC-SHA256 (100 000 itérations) !")
+                    st.code(f"Sel (Salt - 16 octets) : {salt_hex}\nEmpreinte (Hash)        : {hash_hex}", language=None)
+
+        # --- Section 2 : Attaques ---
         with st.container(border=True):
-            st.markdown("**2. Protection contre la Force Brute en Ligne (Account Lockout)**")
-            st.caption("Après 3 échecs consécutifs, le compte est verrouillé pendant 30 secondes.")
-
-            if st.button("Initialiser un compte sécurisé"):
-                salt_hex, hash_hex = protection.proteger_mot_de_passe(target_pwd)
-                st.session_state["compte_cas3"] = (salt_hex, hash_hex)
-                st.success("Compte créé avec mot de passe haché (PBKDF2) !")
-
-            essai_login = st.text_input("Saisir un mot de passe pour vous connecter :", key="login_try_cas3", type="password")
-            
-            if st.button("Se connecter"):
-                if "compte_cas3" not in st.session_state:
-                    st.warning("Veuillez d'abord initialiser le compte sécurisé.")
-                else:
-                    salt_hex, hash_hex = st.session_state["compte_cas3"]
-                    succes, message = protection.verify_login_with_lockout("utilisateur_demo", essai_login, salt_hex, hash_hex)
-                    if succes:
-                        st.success(message)
-                    else:
-                        st.error(message)
-
-        # --- Section 3 : Simulation des Attaques ---
-        with st.container(border=True):
-            st.markdown("**3. Attaques (Force Brute & Dictionnaire)**")
+            st.markdown("**2. Attaques (Minimal Time Execution)**")
             attack_type = st.radio("Méthode d'attaque :", ["Force Brute", "Dictionnaire"], horizontal=True)
 
             if attack_type == "Force Brute":
-                st.caption("Attaque par force brute basée sur l'alphabet standard.")
+                st.caption("Attaque par force brute basée sur l'alphabet standard (a-z, A-Z, 0-9, symboles).")
                 if st.button("Lancer l'attaque Force Brute", type="primary"):
                     if target_pwd:
                         alphabet, _ = charsets.get_cas3_config()
                         with st.spinner("Exécution de l'attaque par force brute..."):
-                            success, guess, attempts, duration = attaks.brute_force_cas3(target_pwd, alphabet)
+                            success, guess, attempts, duration = attacks.brute_force_cas3(target_pwd, alphabet)
 
                         if success:
                             st.success("🎯 Mot de passe cassé avec succès !")
@@ -290,23 +266,30 @@ with tab3:
                             st.metric("Temps écoulé", f"{duration:.5f} secondes")
                         else:
                             st.error(f"❌ Échec de l'attaque après {attempts:,} essais ({duration:.5f}s).")
-            else:
+                    else:
+                        st.warning("Veuillez saisir un mot de passe.")
+
+            else:  # Dictionnaire
+                st.caption("Attaque par dictionnaire testant une liste de candidats.")
                 dict_input = st.text_area(
-                    "Dictionnaire de mots de passe :",
-                    "admin\npassword\n123456\nP@ssword2026!\nroot\nwelcome"
+                    "Dictionnaire de mots de passe (un par ligne) :",
+                    "admin\npassword\n123456\nP@ss*1\nroot\nwelcome"
                 )
                 if st.button("Lancer l'attaque Dictionnaire", type="primary"):
-                    dictionary_list = dict_input.split("\n")
-                    with st.spinner("Recherche..."):
-                        success, guess, attempts, duration = attaks.dictionary_attack_cas3(target_pwd, dictionary_list)
+                    if target_pwd:
+                        dictionary_list = dict_input.split("\n")
+                        with st.spinner("Recherche dans le dictionnaire..."):
+                            success, guess, attempts, duration = attacks.dictionary_attack_cas3(target_pwd, dictionary_list)
 
-                    if success:
-                        st.success("🎯 Mot de passe trouvé dans le dictionnaire !")
-                        st.metric("Mot de passe", guess)
-                        st.metric("Position", f"Essai N°{attempts}")
-                        st.metric("Temps", f"{duration:.6f} secondes")
+                        if success:
+                            st.success("🎯 Mot de passe trouvé dans le dictionnaire !")
+                            st.metric("Mot de passe", guess)
+                            st.metric("Position dans le dictionnaire", f"Essai N°{attempts}")
+                            st.metric("Temps écoulé", f"{duration:.6f} secondes")
+                        else:
+                            st.error(f"❌ Aucune correspondance trouvée dans le dictionnaire ({attempts} mots testés en {duration:.6f}s).")
                     else:
-                        st.error(f"❌ Aucune correspondance dans le dictionnaire.")
+                        st.warning("Veuillez saisir un mot de passe.")
 
     # === CAS 2 : 4 caractères parmi {1,2,3,4} ===
     elif "Cas 2" in pwd_case:
@@ -347,6 +330,9 @@ with tab3:
                 f"{protection4.LOCKOUT_SECONDS} s) : au pire "
                 f"{format_duration(attacks4.estimate_online_time())}.")
 
+        st.success("Protection appliquée : politique de mot de passe (8 caractères ou plus, variés) à l'inscription, "
+                   "délai croissant et blocage global à la connexion. Déconnectez-vous pour les tester sur la page d'authentification.")
+
         st.divider()
         st.subheader("Protection contre la force brute : limitation des tentatives")
         mdp_compte = st.text_input("Mot de passe du compte :", "1234", key="c4_acc_pwd", type="password")
@@ -381,9 +367,209 @@ with tab3:
                 st.success("Mot de passe accepté.")
 
     else:
-        st.info("Cas 1 : à venir.")
+        import itertools
+        import hashlib
+        import hmac
+        # === CAS 1 : 3 caractères parmi {0, 1} ===
+        st.subheader("🔐 Cas 1 : Mot de passe binaire")
+        st.info("Mot de passe de 3 caractères : 0 ou 1. Total : 8 combinaisons.")
 
-# --- ONGLET 4 : Intégrité ---
+        # 1. Saisie et validation du mot de passe
+        target_pwd = st.text_input(
+            "Mot de passe cible :",
+            value="101",
+            type="password",
+            key="c1_target_pwd"
+        )
+
+        valide = (
+            len(target_pwd) == 3
+            and all(c in "01" for c in target_pwd)
+        )
+
+        if valide:
+            st.success("Le mot de passe respecte le format demandé.")
+            st.write(protection1.evaluer_complexite_cas1(target_pwd))
+        else:
+            st.warning("Entrez exactement 3 caractères : 0 ou 1.")
+
+        # 2. Affichage des combinaisons possibles
+        with st.expander("Afficher les 8 combinaisons possibles"):
+            combinaisons = [
+                "".join(c)
+                for c in itertools.product("01", repeat=3)
+            ]
+            st.code("\n".join(combinaisons))
+
+        # 3. Attaques
+        st.subheader("1. Attaques")
+
+        methode = st.radio(
+            "Choisir une attaque :",
+            ["Force brute", "Dictionnaire"],
+            key="c1_attack_method",
+            horizontal=True
+        )
+
+        if methode == "Force brute":
+
+            if st.button("Lancer la force brute", key="c1_brute_btn"):
+
+                if valide:
+                    try:
+                        success, guess, attempts, duration = (
+                            attacks1.brute_force_cas1(target_pwd, "01")
+                        )
+
+                        if success:
+                            st.success(f"Mot de passe trouvé : {guess}")
+                        else:
+                            st.error("Mot de passe non trouvé.")
+
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            st.metric("Nombre d'essais", attempts)
+
+                        with col2:
+                            st.metric(
+                                "Temps d'exécution",
+                                f"{duration:.8f} s"
+                            )
+
+                    except AttributeError:
+                        st.error(
+                            "La fonction brute_force_cas1 est introuvable "
+                            "dans passwords/pass_char3/attacks.py."
+                        )
+                else:
+                    st.error(
+                        "Saisissez un mot de passe valide de 3 caractères : "
+                        "0 ou 1."
+                    )
+
+        else:
+            dictionnaire = st.text_area(
+                "Dictionnaire (un mot de passe par ligne) :",
+                value="000\n001\n101\n111",
+                key="c1_dictionary"
+            )
+
+            if st.button(
+                "Lancer l'attaque par dictionnaire",
+                key="c1_dict_btn"
+            ):
+
+                if valide:
+                    try:
+                        liste = [
+                            mot.strip()
+                            for mot in dictionnaire.splitlines()
+                            if mot.strip()
+                        ]
+
+                        success, guess, attempts, duration = (
+                            attacks1.dictionary_attack_cas1(
+                                target_pwd,
+                                liste
+                            )
+                        )
+
+                        if success:
+                            st.success(f"Mot de passe trouvé : {guess}")
+                        else:
+                            st.warning(
+                                "Mot de passe absent du dictionnaire."
+                            )
+
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            st.metric("Nombre d'essais", attempts)
+
+                        with col2:
+                            st.metric(
+                                "Temps d'exécution",
+                                f"{duration:.8f} s"
+                            )
+
+                    except AttributeError:
+                        st.error(
+                            "La fonction dictionary_attack_cas1 est "
+                            "introuvable dans passwords/pass_char3/attacks.py."
+                        )
+                else:
+                    st.error(
+                        "Saisissez un mot de passe valide de 3 caractères : "
+                        "0 ou 1."
+                    )
+
+        # ==============================
+        # 4. PROTECTION DU MOT DE PASSE
+        # ==============================
+        st.subheader("2. Protection du mot de passe")
+
+        if valide:
+            # Génération d'un hash avec sel et PBKDF2
+            if st.button(
+                "Protéger le mot de passe",
+                key="c1_protect_btn"
+            ):
+                salt_hex, hash_hex = (
+                    protection1.proteger_mot_de_passe(target_pwd)
+                )
+
+                st.session_state["c1_salt"] = salt_hex
+                st.session_state["c1_hash"] = hash_hex
+
+            if (
+                "c1_salt" in st.session_state
+                and "c1_hash" in st.session_state
+            ):
+                st.write("**Sel généré :**")
+                st.code(st.session_state["c1_salt"])
+
+                st.write("**Hash du mot de passe :**")
+                st.code(st.session_state["c1_hash"])
+
+                st.caption(
+                    "Le mot de passe est transformé avec PBKDF2-HMAC-SHA256 "
+                    "et un sel aléatoire."
+                )
+
+                # Vérification du mot de passe
+                st.markdown("#### Vérifier un mot de passe")
+
+                pwd_test = st.text_input(
+                    "Mot de passe à vérifier :",
+                    type="password",
+                    key="c1_verify_pwd"
+                )
+
+                if st.button(
+                    "Vérifier le mot de passe",
+                    key="c1_verify_btn"
+                ):
+                    verification = (
+                        protection1.verifier_mot_de_passe(
+                            pwd_test,
+                            st.session_state["c1_salt"],
+                            st.session_state["c1_hash"]
+                        )
+                    )
+
+                    if verification:
+                        st.success("Mot de passe correct.")
+                    else:
+                        st.error("Mot de passe incorrect.")
+        else:
+            st.info(
+                "Saisissez d'abord un mot de passe valide pour tester "
+                "la protection."
+            )
+
+                   
+
 # --- ONGLET 4 : Intégrité / Authenticité ---
 with tab4:
     header_col1, header_col2 = st.columns([3, 1])

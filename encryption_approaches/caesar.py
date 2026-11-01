@@ -46,3 +46,6 @@ def decrypt(texte, cle, sens="droite"):
     if sens == "gauche":
         n = -n
     return decaler(texte, -n)
+
+
+
